@@ -1,0 +1,97 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["auth", "public"]
+}
+
+model User {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  email     String     @unique
+  password  String
+  role      String     @default("user")
+  createdAt DateTime   @default(now())
+  lastLogin DateTime
+  updatedAt DateTime   @updatedAt
+  sessions  Session[]
+  reminders Reminder[]
+  tags      Tag[]
+  tasks     Task[]
+
+  @@map("users")
+  @@schema("auth")
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  status      Boolean  @default(false)
+  author      String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [author], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+  @@schema("public")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String   @db.Uuid
+  revoked   Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "sessions_author_fkey")
+
+  @@map("sessions")
+  @@schema("auth")
+}
+
+model Reminder {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String?
+  author      String        @db.Uuid
+  priority    String
+  createdAt   DateTime      @default(now())
+  dueDate     DateTime
+  updatedAt   DateTime      @updatedAt
+  tags        ReminderTag[]
+  user        User          @relation(fields: [author], references: [id], onDelete: Cascade)
+
+  @@map("reminders")
+  @@schema("public")
+}
+
+model Tag {
+  id        Int           @id @default(autoincrement())
+  name      String
+  color     String
+  author    String        @db.Uuid
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  reminders ReminderTag[]
+  user      User          @relation(fields: [author], references: [id], onDelete: Cascade)
+
+  @@map("tags")
+  @@schema("public")
+}
+
+model ReminderTag {
+  reminderId Int
+  tagId      Int
+  reminder   Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([reminderId, tagId])
+  @@map("reminder_tags")
+  @@schema("public")
+}
